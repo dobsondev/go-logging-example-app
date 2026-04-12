@@ -18,6 +18,16 @@ curl localhost:8080/errors/6
 
 The whole idea behind this is just to run this application and then use the errors endpoint to mess around with Grafana and Loki on my homelab.
 
+## Generating a Spread of Errors
+
+A script is provided to automatically generate a spread of errors over time, which is useful for creating a more realistic error pattern on the Grafana dashboard:
+
+```bash
+./scripts/generate-errors-on-homelab.sh
+```
+
+This hits the `/errors/{count}` endpoint with varying counts (`5, 10, 3, 8, 15, 2, 12`) with a 30 second sleep between each request, spreading errors over roughly 3.5 minutes. The variation in counts produces a jagged line on the Grafana dashboard that is much more useful for testing than a flat uniform spike.
+
 ## Fabricate a Deployment
 
 We can annotate the app on ArgoCD in order to force a refresh:
