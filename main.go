@@ -21,6 +21,7 @@ func main() {
 
 	router := http.NewServeMux()
 
+	router.HandleFunc("GET /health", handlers.HealthCheck)
 	router.HandleFunc("GET /errors/{count}", handlers.LogErrors)
 
 	middlewareStack := middleware.CreateStack(

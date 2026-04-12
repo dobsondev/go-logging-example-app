@@ -1,0 +1,101 @@
+name: Continuous Integration
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build Application
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Install Dependencies
+        run: go get .
+
+      - name: Build
+        run: go build -v ./...
+
+  build-docker:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v4
+      
+      - name: Build Docker Image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: false
+          tags: ${{ github.sha }}-ci
+          outputs: type=docker,dest=/tmp/${{ github.repository }}-image.tar
+      
+      - name: Upload Docker Image as Artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: docker-image
+          path: /tmp/${{ github.repository }}-image.tar
+  
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [build-docker]
+    steps:
+      - uses: actions/checkout@v6
+      
+      - name: Download Docker Image
+        uses: actions/download-artifact@v8
+        with:
+          name: docker-image
+          path: /tmp
+      
+      - name: Load Docker Image
+        run: |
+          docker load --input /tmp/${{ github.repository }}-image.tar
+      
+      - name: Start Docker Container
+        run: |
+          docker run -d -p 8080:8080 --name ${{ github.repository }} ${{ github.repository }}:${{ github.sha }}-ci
+          # Wait for app to start
+          sleep 5
+      
+      - name: Install Newman
+        run: npm install -g newman
+      
+      - name: Run Postman Tests
+        run: |
+          for file in postman/*.json; do
+            if [ -f "$file" ]; then
+              echo "Running tests from $file"
+              newman run "$file" \
+                --env-var "scheme=http" \
+                --env-var "url=localhost:8080" \
+                --reporters cli,json \
+                --reporter-json-export build/report/$(basename $file .json)-results.json
+            fi
+          done
+        
+      - name: Upload Postman Results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: Postman Test Results
+          path: build/report
+      
+      - name: Dump Container Logs
+        if: always()
+        run: docker logs ${{ github.repository }}
+      
+      - name: Stop Docker Container
+        if: always()
+        run: docker stop ${{ github.repository }} && docker rm ${{ github.repository }}
