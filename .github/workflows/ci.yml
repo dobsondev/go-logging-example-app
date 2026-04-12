@@ -38,13 +38,13 @@ jobs:
           context: .
           push: false
           tags: ${{ github.sha }}-ci
-          outputs: type=docker,dest=/tmp/${{ github.repository }}-image.tar
-      
+          outputs: type=docker,dest=/tmp/${{ github.event.repository.name }}-image.tar
+
       - name: Upload Docker Image as Artifact
         uses: actions/upload-artifact@v7
         with:
           name: docker-image
-          path: /tmp/${{ github.repository }}-image.tar
+          path: /tmp/${{ github.event.repository.name }}-image.tar
   
   integration:
     name: Integration Tests
@@ -61,7 +61,7 @@ jobs:
       
       - name: Load Docker Image
         run: |
-          docker load --input /tmp/${{ github.repository }}-image.tar
+          docker load --input /tmp/${{ github.event.repository.name }}-image.tar
       
       - name: Start Docker Container
         run: |
