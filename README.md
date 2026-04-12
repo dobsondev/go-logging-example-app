@@ -2,6 +2,23 @@
 
 This is an example backend Go API that allows me to test out logging via Loki and Grafana on my homelab. It is deployed via GitOps using ArgoCD.
 
+## Manufacturing Errors
+
+This application has the following endpoint that will generate errors logs:
+
+```
+/errors/{count}
+```
+
+You can ping this endpoint to generate a number of error log entries equal to `{count}`. For example, you could use the following to generate 6 errors:
+
+```bash
+curl localhost:8080/errors/6
+```
+
+The whole idea behind this is just to run this application and then use the errors endpoint to mess around with Granfana and Loki on my homelab.
+
+
 ## Homelab Setup
 
 This repository is integrated with the [dobsondev/homelab](https://github.com/dobsondev/homelab) repository to enable a fully automated GitOps deployment pipeline via ArgoCD. When a release tag (e.g. `v0.0.1`) is pushed, the release workflow builds and pushes the Docker image to the GitHub Container Registry (GHCR), then automatically updates the Helm values file in the homelab repository with the new image tag. ArgoCD detects the change in the homelab repository and syncs the updated manifest to the cluster, deploying the new version of the application.
