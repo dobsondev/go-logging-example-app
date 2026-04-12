@@ -62,7 +62,7 @@ jobs:
       - name: Update ArgoCD Application Manifest
         working-directory: homelab/argocd/helm/values
         run: |
-          yq e '.image.tag = "${{ needs.build-and-push-image.outputs.image-tag }}"' -i ${{ github.repository }}.yml
+          yq e '.image.tag = "${{ needs.build-and-push-image.outputs.image-tag }}"' -i ${{ github.event.repository.name }}.yml
 
       - name: Commit and Push
         working-directory: homelab/argocd/helm/values
@@ -70,8 +70,8 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git remote set-url origin https://x-access-token:${{ secrets.HOMELAB_REPO_TOKEN }}@github.com/dobsondev/homelab.git
-          git add ${{ github.repository }}.yml
-          git commit -m "automated(${{ github.repository }}): update image tag to ${{ needs.build-and-push-image.outputs.image-tag }} [skip ci]"
+          git add ${{ github.event.repository.name }}.yml
+          git commit -m "automated(${{ github.event.repository.name }}): update image tag to ${{ needs.build-and-push-image.outputs.image-tag }}"
           git push
 
   github-release:
