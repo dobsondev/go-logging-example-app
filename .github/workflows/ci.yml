@@ -37,7 +37,7 @@ jobs:
         with:
           context: .
           push: false
-          tags: ${{ github.sha }}-ci
+          tags: ${{ github.event.repository.name }}:${{ github.sha }}-ci
           outputs: type=docker,dest=/tmp/${{ github.event.repository.name }}-image.tar
 
       - name: Upload Docker Image as Artifact
