@@ -37,14 +37,14 @@ jobs:
         with:
           context: .
           push: false
-          tags: ${{ github.sha }}-ci
-          outputs: type=docker,dest=/tmp/${{ github.repository }}-image.tar
-      
+          tags: ${{ github.event.repository.name }}:${{ github.sha }}-ci
+          outputs: type=docker,dest=/tmp/${{ github.event.repository.name }}-image.tar
+
       - name: Upload Docker Image as Artifact
         uses: actions/upload-artifact@v7
         with:
           name: docker-image
-          path: /tmp/${{ github.repository }}-image.tar
+          path: /tmp/${{ github.event.repository.name }}-image.tar
   
   integration:
     name: Integration Tests
@@ -61,11 +61,11 @@ jobs:
       
       - name: Load Docker Image
         run: |
-          docker load --input /tmp/${{ github.repository }}-image.tar
+          docker load --input /tmp/${{ github.event.repository.name }}-image.tar
       
       - name: Start Docker Container
         run: |
-          docker run -d -p 8080:8080 --name ${{ github.repository }} ${{ github.repository }}:${{ github.sha }}-ci
+          docker run -d -p 8080:8080 --name ${{ github.event.repository.name }} ${{ github.event.repository.name }}:${{ github.sha }}-ci
           # Wait for app to start
           sleep 5
       
@@ -94,8 +94,8 @@ jobs:
       
       - name: Dump Container Logs
         if: always()
-        run: docker logs ${{ github.repository }}
+        run: docker logs ${{ github.event.repository.name }}
       
       - name: Stop Docker Container
         if: always()
-        run: docker stop ${{ github.repository }} && docker rm ${{ github.repository }}
+        run: docker stop ${{ github.event.repository.name }} && docker rm ${{ github.event.repository.name }}
