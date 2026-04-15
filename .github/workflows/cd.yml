@@ -49,6 +49,11 @@ jobs:
     uses: ./.github/workflows/_build-and-push-image.yml
     needs: [ci, release-check]
     if: needs.release-check.outputs.new_release_published != 'true'
+    permissions:
+      contents: read
+      attestations: write
+      packages: write
+      id-token: write
     with:
       tags: |
         type=sha,format=short,prefix=
@@ -59,11 +64,16 @@ jobs:
     uses: ./.github/workflows/_build-and-push-image.yml
     needs: [ci, release-check]
     if: needs.release-check.outputs.new_release_published == 'true'
+    permissions:
+      contents: read
+      attestations: write
+      packages: write
+      id-token: write
     with:
       tags: |
+        type=raw,value=v${{ needs.release-check.outputs.new_release_version }}
         type=sha,format=short,prefix=
         type=raw,value=latest
-        type=raw,value=v${{ needs.release-check.outputs.new_release_version }}
 
   release:
     name: Create Release
@@ -94,32 +104,12 @@ jobs:
         run: npx semantic-release
 
   argocd-gitops:
-    name: ArgoCD GitOps
-    runs-on: ubuntu-latest
     needs: [build-and-push-image-release, release]
     if: needs.release-check.outputs.new_release_published == 'true'
     permissions:
       contents: read
       id-token: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          repository: dobsondev/homelab
-          path: homelab
-          token: ${{ secrets.HOMELAB_REPO_TOKEN }}
-
-      - name: Update ArgoCD Application Manifest
-        working-directory: homelab/argocd/helm/values
-        run: |
-          yq e '.image.tag = "${{ needs.build-and-push-image-release.outputs.image-tag }}"' -i ${{ github.event.repository.name }}.yml
-
-      - name: Commit and Push
-        working-directory: homelab/argocd/helm/values
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git remote set-url origin https://x-access-token:${{ secrets.HOMELAB_REPO_TOKEN }}@github.com/dobsondev/homelab.git
-          git add ${{ github.event.repository.name }}.yml
-          git commit -m "automated(${{ github.event.repository.name }}): update image tag to ${{ needs.build-and-push-image-release.outputs.image-tag }}"
-          git push
+    uses: ./.github/workflows/_argocd-gitops.yml
+    secrets: inherit
+    with:
+      docker-image-tag: ${{ needs.build-and-push-image-release.outputs.image-tag }}
