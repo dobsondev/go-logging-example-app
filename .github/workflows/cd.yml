@@ -4,6 +4,9 @@ on:
   push:
     branches: [ "main" ]
     paths-ignore:
+      - '.air.toml'
+      - '.gitignore'
+      - 'docker-compose.yml'
       - 'README.md'
 
 jobs:
@@ -27,10 +30,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      # https://github.com/semantic-release/semantic-release/blob/master/docs/recipes/ci-configurations/github-actions.md
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: "lts/*"
 
       - name: Install semantic-release
         run: npm install -g semantic-release @semantic-release/commit-analyzer @semantic-release/release-notes-generator @semantic-release/github
@@ -40,9 +44,17 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          npx semantic-release --dry-run
-          echo "new_release_published=${NEW_RELEASE_PUBLISHED}" >> $GITHUB_OUTPUT
-          echo "new_release_version=${NEW_RELEASE_VERSION}" >> $GITHUB_OUTPUT
+          OUTPUT=$(npx semantic-release --dry-run 2>&1)
+          echo "$OUTPUT"
+          
+          if echo "$OUTPUT" | grep -q "The next release version is"; then
+            VERSION=$(echo "$OUTPUT" | grep "The next release version is" | sed 's/.*The next release version is //')
+            echo "new_release_published=true" >> $GITHUB_OUTPUT
+            echo "new_release_version=${VERSION}" >> $GITHUB_OUTPUT
+          else
+            echo "new_release_published=false" >> $GITHUB_OUTPUT
+            echo "new_release_version=" >> $GITHUB_OUTPUT
+          fi
 
   build-and-push-image-sha:
     name: Build and Push SHA Image
@@ -90,10 +102,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      # https://github.com/semantic-release/semantic-release/blob/master/docs/recipes/ci-configurations/github-actions.md
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: "lts/*"
 
       - name: Install semantic-release
         run: npm install -g semantic-release @semantic-release/commit-analyzer @semantic-release/release-notes-generator @semantic-release/github
