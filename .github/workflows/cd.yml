@@ -63,7 +63,7 @@ jobs:
       tags: |
         type=sha,format=short,prefix=
         type=raw,value=latest
-        type=semver,pattern={{version}},value=v${{ needs.release-check.outputs.new_release_version }}
+        type=raw,value=v${{ needs.release-check.outputs.new_release_version }}
 
   release:
     name: Create Release
