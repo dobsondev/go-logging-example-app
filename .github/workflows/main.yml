@@ -1,0 +1,96 @@
+name: Main
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, closed]
+
+permissions:
+  pull-requests: write
+  contents: write
+
+jobs:
+  ci:
+    uses: ./.github/workflows/_ci.yml
+
+  create-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get Latest Release
+        id: get-latest-release
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const latestRelease = await github.rest.repos.getLatestRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            return latestRelease.data.tag_name;
+
+      - name: Calculate Version Bump
+        id: calculate-version-bump
+        uses: actions/github-script@v9
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        with:
+          script: |
+            const title = process.env.TITLE.toLowerCase();
+            if (title.includes('breaking')) {
+              return 'major';
+            } else if (title.includes('feat')) {
+              return 'minor';
+            } else if (title.includes('fix')) {
+              return 'patch';
+            } else {
+              return 'none';
+            }
+
+      - name: New Version
+        id: new-version
+        uses: actions/github-script@v9
+        env:
+          LATEST_RELEASE: ${{ steps.get-latest-release.outputs.result }}
+          VERSION_BUMP: ${{ steps.calculate-version-bump.outputs.result }}
+        with:
+          script: |
+            const semver = require('semver');
+            const latestVersion = process.env.LATEST_RELEASE;
+            const bumpType = process.env.VERSION_BUMP;
+
+            if (bumpType === 'none') {
+              return null;
+            }
+
+            const newVersion = semver.inc(latestVersion, bumpType);
+            return newVersion;
+
+      - name: Add Release Preview Comment to Pull Request
+        if: steps.new-version.outputs.result != null && github.event.action != 'closed'
+        uses: actions/github-script@v9
+        env:
+          NEW_VERSION: ${{ steps.new-version.outputs.result }}
+        with:
+          script: |
+            const newVersion = process.env.NEW_VERSION;
+            const commentBody = `This PR will trigger a release with version **${newVersion}** when merged.`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: commentBody,
+            });
+
+      # - name: Checkout Code for Tag
+      #   if: github.event.pull_request.merged == true && steps.new-version.outputs.result != null
+      #   uses: actions/checkout@v6
+
+      # - name: Create New Tag
+      #   if: github.event.pull_request.merged == true && steps.new-version.outputs.result != null
+      #   run: |
+      #     VERSION_TAG=${{ steps.new-version.outputs.result }}
+      #     git config user.name "github-actions[bot]"
+      #     git config user.email "github-actions[bot]@users.noreply.github.com"
+      #     git tag -a $VERSION_TAG -m "Release $VERSION_TAG"
+      #     git push origin $VERSION_TAG
+      #     echo "Created and pushed tag $VERSION_TAG - this will trigger the release workflow"
