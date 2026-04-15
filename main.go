@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"log/slog"
@@ -9,6 +10,8 @@ import (
 
 	"github.com/dobsondev/go-logging-example-app/handlers"
 	"github.com/dobsondev/go-logging-example-app/middleware"
+	"github.com/dobsondev/go-logging-example-app/telemetry"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 const PORT string = ":8080"
@@ -18,6 +21,15 @@ func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	// Set it as the default logger for the whole app
 	slog.SetDefault(logger)
+
+	ctx := context.Background()
+
+	shutdown, err := telemetry.InitTracer(ctx)
+	if err != nil {
+		slog.Error("failed to init tracer", "err", err)
+		os.Exit(1)
+	}
+	defer shutdown(ctx)
 
 	router := http.NewServeMux()
 
@@ -30,10 +42,10 @@ func main() {
 
 	srv := http.Server{
 		Addr:    PORT,
-		Handler: middlewareStack(router),
+		Handler: otelhttp.NewHandler(middlewareStack(router), "go-logging-example-app"),
 	}
 
 	fmt.Printf("Listening on port %s\n", PORT)
-	err := srv.ListenAndServe()
+	err = srv.ListenAndServe()
 	log.Fatal(err)
 }
