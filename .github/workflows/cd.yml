@@ -4,14 +4,17 @@ on:
   push:
     branches: [ "main" ]
     paths-ignore:
+      - '.air.toml'
+      - '.gitignore'
+      - 'docker-compose.yml'
       - 'README.md'
 
 jobs:
   ci:
     uses: ./.github/workflows/_ci.yml
 
-  release-check:
-    name: Check for Release
+  release:
+    name: Release
     runs-on: ubuntu-latest
     needs: [ci]
     permissions:
@@ -27,28 +30,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Install semantic-release
-        run: npm install -g semantic-release @semantic-release/commit-analyzer @semantic-release/release-notes-generator @semantic-release/github
-
-      - name: Check Release
+      - name: Release
         id: semantic
+        # https://github.com/cycjimmy/semantic-release-action
+        uses: cycjimmy/semantic-release-action@v4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          npx semantic-release --dry-run
-          echo "new_release_published=${NEW_RELEASE_PUBLISHED}" >> $GITHUB_OUTPUT
-          echo "new_release_version=${NEW_RELEASE_VERSION}" >> $GITHUB_OUTPUT
 
   build-and-push-image-sha:
     name: Build and Push SHA Image
     uses: ./.github/workflows/_build-and-push-image.yml
-    needs: [ci, release-check]
-    if: needs.release-check.outputs.new_release_published != 'true'
+    needs: [ci, release]
+    if: needs.release.outputs.new_release_published != 'true'
     permissions:
       contents: read
       attestations: write
@@ -62,8 +55,8 @@ jobs:
   build-and-push-image-release:
     name: Build and Push Release Image
     uses: ./.github/workflows/_build-and-push-image.yml
-    needs: [ci, release-check]
-    if: needs.release-check.outputs.new_release_published == 'true'
+    needs: [ci, release]
+    if: needs.release.outputs.new_release_published == 'true'
     permissions:
       contents: read
       attestations: write
@@ -71,41 +64,13 @@ jobs:
       id-token: write
     with:
       tags: |
-        type=raw,value=v${{ needs.release-check.outputs.new_release_version }}
+        type=raw,value=v${{ needs.release.outputs.new_release_version }}
         type=sha,format=short,prefix=
         type=raw,value=latest
 
-  release:
-    name: Create Release
-    runs-on: ubuntu-latest
-    needs: [build-and-push-image-release, release-check]
-    if: needs.release-check.outputs.new_release_published == 'true'
-    permissions:
-      contents: write
-      issues: write
-      pull-requests: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Install semantic-release
-        run: npm install -g semantic-release @semantic-release/commit-analyzer @semantic-release/release-notes-generator @semantic-release/github
-
-      - name: Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx semantic-release
-
   argocd-gitops:
     needs: [build-and-push-image-release, release]
-    if: needs.release-check.outputs.new_release_published == 'true'
+    if: needs.release.outputs.new_release_published == 'true'
     permissions:
       contents: read
       id-token: write
