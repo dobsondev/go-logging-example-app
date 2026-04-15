@@ -50,6 +50,7 @@ jobs:
     needs: [ci, release-check]
     if: needs.release-check.outputs.new_release_published != 'true'
     permissions:
+      contents: read
       attestations: write
       packages: write
       id-token: write
@@ -64,6 +65,7 @@ jobs:
     needs: [ci, release-check]
     if: needs.release-check.outputs.new_release_published == 'true'
     permissions:
+      contents: read
       attestations: write
       packages: write
       id-token: write
