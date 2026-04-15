@@ -25,31 +25,11 @@ jobs:
           docker manifest inspect ghcr.io/${{ github.repository }}:${{ inputs.docker-image-tag }}
     
   argocd-gitops:
-    name: ArgoCD GitOps
-    runs-on: ubuntu-latest
     needs: [check-image]
     permissions:
       contents: read
       id-token: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          repository: dobsondev/homelab
-          path: homelab
-          token: ${{ secrets.HOMELAB_REPO_TOKEN }}
-
-      - name: Update ArgoCD Application Manifest
-        working-directory: homelab/argocd/helm/values
-        run: |
-          yq e '.image.tag = "${{ inputs.docker-image-tag }}"' -i ${{ github.event.repository.name }}.yml
-
-      - name: Commit and Push
-        working-directory: homelab/argocd/helm/values
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git remote set-url origin https://x-access-token:${{ secrets.HOMELAB_REPO_TOKEN }}@github.com/dobsondev/homelab.git
-          git add ${{ github.event.repository.name }}.yml
-          git commit -m "automated(${{ github.event.repository.name }}): update image tag to ${{ inputs.docker-image-tag }}"
-          git push
+    uses: ./.github/workflows/_argocd-gitops.yml
+    secrets: inherit
+    with:
+      docker-image-tag: ${{ inputs.docker-image-tag }}
