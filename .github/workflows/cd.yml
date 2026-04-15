@@ -51,7 +51,8 @@ jobs:
     if: needs.release-check.outputs.new_release_published != 'true'
     with:
       tags: |
-        type=sha
+        type=sha,format=short,prefix=
+        type=raw,value=latest
 
   build-and-push-image-release:
     name: Build and Push Release Image
@@ -60,9 +61,9 @@ jobs:
     if: needs.release-check.outputs.new_release_published == 'true'
     with:
       tags: |
-        type=sha
+        type=sha,format=short,prefix=
+        type=raw,value=latest
         type=semver,pattern={{version}},value=v${{ needs.release-check.outputs.new_release_version }}
-        type=semver,pattern={{major}}.{{minor}},value=v${{ needs.release-check.outputs.new_release_version }}
 
   release:
     name: Create Release
