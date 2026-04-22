@@ -37,8 +37,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build-and-push-image-sha:
-    name: Build and Push SHA Image
+  build-and-push-non-release-image:
+    name: Build and Push Non-Release Image
     uses: ./.github/workflows/_build-and-push-image.yml
     needs: [ci, release]
     if: needs.release.outputs.new_release_published != 'true'
@@ -52,7 +52,7 @@ jobs:
         type=sha,format=short,prefix=
         type=raw,value=latest
 
-  build-and-push-image-release:
+  build-and-push-release-image:
     name: Build and Push Release Image
     uses: ./.github/workflows/_build-and-push-image.yml
     needs: [ci, release]
