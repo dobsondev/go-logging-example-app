@@ -69,7 +69,7 @@ jobs:
         type=raw,value=latest
 
   argocd-gitops:
-    needs: [build-and-push-image-release, release]
+    needs: [build-and-push-release-image, release]
     if: needs.release.outputs.new_release_published == 'true'
     permissions:
       contents: read
@@ -77,4 +77,4 @@ jobs:
     uses: ./.github/workflows/_argocd-gitops.yml
     secrets: inherit
     with:
-      docker-image-tag: ${{ needs.build-and-push-image-release.outputs.image-tag }}
+      docker-image-tag: ${{ needs.build-and-push-release-image.outputs.image-tag }}
